@@ -91,7 +91,7 @@
     <div class="main-content">
         <div id="map"></div>
         <aside>
-            <h2>Informace</h2>
+            <h2>Informace o PSČ</h2>
             <p><strong>PSČ:</strong> <span id="postalCode">-</span></p>
             <p><strong>Město:</strong> <span id="city">-</span></p>
             <p><strong>Země:</strong> <span id="country">-</span></p>
@@ -108,7 +108,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Seznam PSČ, měst a souřadnic pro testovací účely
+        // Seznam PSČ pro simulaci pohybu vozidla
         var postalCodes = [
             { postalcode: "11000", place: "Praha", countrycode: "CZ", lat: 50.0755, lon: 14.4378 },
             { postalcode: "20000", place: "Brno", countrycode: "CZ", lat: 49.1951, lon: 16.6068 },
@@ -117,18 +117,30 @@
             { postalcode: "1200", place: "Zürich", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
         ];
 
-        // Přidání markerů pro každý záznam PSČ
-        postalCodes.forEach(function (postal) {
-            var marker = L.marker([postal.lat, postal.lon]).addTo(map);
-            marker.bindPopup(`<strong>PSČ:</strong> ${postal.postalcode}<br><strong>Město:</strong> ${postal.place}<br><strong>Země:</strong> ${postal.countrycode}`);
+        // Funkce pro simulaci pohybu vozidla
+        function simulateVehicleMovement(currentIndex) {
+            if (currentIndex < postalCodes.length) {
+                var postal = postalCodes[currentIndex];
 
-            // Po kliknutí na marker se aktualizují informace na bočním panelu
-            marker.on('click', function () {
+                // Aktualizace informací na bočním panelu
                 document.getElementById('postalCode').innerText = postal.postalcode;
                 document.getElementById('city').innerText = postal.place;
                 document.getElementById('country').innerText = postal.countrycode;
-            });
-        });
+
+                // Posunout vozidlo na novou lokaci (například simulace přesunování)
+                map.setView([postal.lat, postal.lon], 6);
+
+                // Zavolat funkci pro další krok za 3 sekundy (simulace pohybu)
+                setTimeout(function() {
+                    simulateVehicleMovement(currentIndex + 1);
+                }, 3000);
+            } else {
+                console.log("Simulace dokončena!");
+            }
+        }
+
+        // Spustit simulaci pohybu od začátku
+        simulateVehicleMovement(0);
     </script>
 </body>
 </html>
