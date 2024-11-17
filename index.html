@@ -91,7 +91,7 @@
     <div class="main-content">
         <div id="map"></div>
         <aside>
-            <h2>Informace o PSČ</h2>
+            <h2>Informace</h2>
             <p><strong>PSČ:</strong> <span id="postalCode">-</span></p>
             <p><strong>Město:</strong> <span id="city">-</span></p>
             <p><strong>Země:</strong> <span id="country">-</span></p>
@@ -108,7 +108,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Seznam PSČ pro simulaci pohybu vozidla
+        // Seznam PSČ a souřadnic pro simulaci pohybu vozidla
         var postalCodes = [
             { postalcode: "11000", place: "Praha", countrycode: "CZ", lat: 50.0755, lon: 14.4378 },
             { postalcode: "20000", place: "Brno", countrycode: "CZ", lat: 49.1951, lon: 16.6068 },
@@ -117,30 +117,50 @@
             { postalcode: "1200", place: "Zürich", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
         ];
 
-        // Funkce pro simulaci pohybu vozidla
-        function simulateVehicleMovement(currentIndex) {
-            if (currentIndex < postalCodes.length) {
-                var postal = postalCodes[currentIndex];
+        // Vytvoření markeru pro vozidlo
+        var vehicleMarker = L.marker([postalCodes[0].lat, postalCodes[0].lon]).addTo(map);
+        vehicleMarker.bindPopup("<strong>Vozidlo</strong>");
 
-                // Aktualizace informací na bočním panelu
-                document.getElementById('postalCode').innerText = postal.postalcode;
-                document.getElementById('city').innerText = postal.place;
-                document.getElementById('country').innerText = postal.countrycode;
-
-                // Posunout vozidlo na novou lokaci (například simulace přesunování)
-                map.setView([postal.lat, postal.lon], 6);
-
-                // Zavolat funkci pro další krok za 3 sekundy (simulace pohybu)
-                setTimeout(function() {
-                    simulateVehicleMovement(currentIndex + 1);
-                }, 3000);
-            } else {
-                console.log("Simulace dokončena!");
-            }
+        // Funkce pro výpočet vzdálenosti mezi dvěma body
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371; // poloměr Země v km
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var distance = R * c; // vzdálenost v km
+            return distance;
         }
 
-        // Spustit simulaci pohybu od začátku
-        simulateVehicleMovement(0);
+        // Funkce pro simulaci pohybu vozidla
+        function moveVehicle() {
+            var index = 0;
+            var speed = 80; // rychlost v km/h
+            var interval = 2000; // interval pro pohyb vozidla (v ms)
+
+            setInterval(function () {
+                if (index < postalCodes.length - 1) {
+                    var current = postalCodes[index];
+                    var next = postalCodes[index + 1];
+                    var distance = calculateDistance(current.lat, current.lon, next.lat, next.lon);
+                    var timeToTravel = (distance / speed) * 3600 * 1000; // čas na cestu v ms
+
+                    // Aktualizace pozice vozidla
+                    vehicleMarker.setLatLng([next.lat, next.lon]);
+                    document.getElementById('postalCode').innerText = next.postalcode;
+                    document.getElementById('city').innerText = next.place;
+                    document.getElementById('country').innerText = next.countrycode;
+
+                    // Přejít na další PSČ
+                    index++;
+                }
+            }, interval);
+        }
+
+        // Spustit pohyb vozidla
+        moveVehicle();
     </script>
 </body>
 </html>
