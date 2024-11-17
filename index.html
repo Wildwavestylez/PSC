@@ -110,11 +110,11 @@
 
         // Seznam PSČ a souřadnic pro simulaci pohybu vozidla
         var postalCodes = [
-            { postalcode: "10000", place: "10000 Praha 10 - Strašnice,", countrycode: "CZ", lat: 50.0765117, lon: 14.4928072 },
+            { postalcode: "11000", place: "Praha", countrycode: "CZ", lat: 50.0755, lon: 14.4378 },
             { postalcode: "20000", place: "Brno", countrycode: "CZ", lat: 49.1951, lon: 16.6068 },
             { postalcode: "10115", place: "Berlín", countrycode: "DE", lat: 52.5235, lon: 13.4115 },
             { postalcode: "1010", place: "Vídeň", countrycode: "AT", lat: 48.2064, lon: 16.3705 },
-            { postalcode: "1200", place: "Zürich", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
+            { postalcode: "1200", place: "Zürích", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
         ];
 
         // Vytvoření markeru pro vozidlo
@@ -138,23 +138,40 @@
         function moveVehicle() {
             var index = 0;
             var speed = 80; // rychlost v km/h
-            var interval = 2000; // interval pro pohyb vozidla (v ms)
+            var interval = 1000; // interval pro animaci (v ms)
 
-            setInterval(function () {
+            var moveInterval = setInterval(function () {
                 if (index < postalCodes.length - 1) {
                     var current = postalCodes[index];
                     var next = postalCodes[index + 1];
                     var distance = calculateDistance(current.lat, current.lon, next.lat, next.lon);
                     var timeToTravel = (distance / speed) * 3600 * 1000; // čas na cestu v ms
 
-                    // Aktualizace pozice vozidla
-                    vehicleMarker.setLatLng([next.lat, next.lon]);
-                    document.getElementById('postalCode').innerText = next.postalcode;
-                    document.getElementById('city').innerText = next.place;
-                    document.getElementById('country').innerText = next.countrycode;
+                    // Plynulý pohyb vozidla
+                    var steps = timeToTravel / interval; // počet kroků pro plynulý pohyb
+                    var deltaLat = (next.lat - current.lat) / steps;
+                    var deltaLon = (next.lon - current.lon) / steps;
 
-                    // Přejít na další PSČ
-                    index++;
+                    var step = 0;
+
+                    // Animace pohybu
+                    var animateMove = setInterval(function () {
+                        if (step < steps) {
+                            current.lat += deltaLat;
+                            current.lon += deltaLon;
+                            vehicleMarker.setLatLng([current.lat, current.lon]);
+
+                            document.getElementById('postalCode').innerText = next.postalcode;
+                            document.getElementById('city').innerText = next.place;
+                            document.getElementById('country').innerText = next.countrycode;
+                            step++;
+                        } else {
+                            clearInterval(animateMove);
+                            index++;
+                        }
+                    }, interval);
+                } else {
+                    clearInterval(moveInterval); // Konec simulace, vozidlo dosáhlo posledního PSČ
                 }
             }, interval);
         }
