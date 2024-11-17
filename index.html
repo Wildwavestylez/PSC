@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evropská PSČ Mapa</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* Reset */
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        header .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        header nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        header nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* Main content */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 60px); /* Výška minus header */
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+
+        aside {
+            width: 300px;
+            background: #F8F9FA;
+            padding: 20px;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        aside h2 {
+            margin-top: 0;
+        }
+
+        aside p {
+            margin: 10px 0;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 10px;
+            background: #F8F9FA;
+            font-size: 0.9em;
+            color: #343A40;
+        }
+
+        footer a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">Evropská PSČ</div>
+        <nav>
+            <a href="#about">O projektu</a>
+            <a href="#github">GitHub</a>
+        </nav>
+    </header>
+    <div class="main-content">
+        <div id="map"></div>
+        <aside>
+            <h2>Informace</h2>
+            <p><strong>PSČ:</strong> <span id="postalCode">-</span></p>
+            <p><strong>Město:</strong> <span id="city">-</span></p>
+            <p><strong>Země:</strong> <span id="country">-</span></p>
+        </aside>
+    </div>
+    <footer>
+        <p>&copy; 2024, Evropská PSČ Mapa | <a href="#github">Zdrojový kód</a></p>
+    </footer>
+    <script>
+        // Inicializace mapy
+        var map = L.map('map').setView([50.0755, 14.4378], 6); // Praha jako výchozí bod
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Načtení GeoJSON souboru
+        fetch('geonames-postal-code.geojson') // Nahraďte cestou k vašemu souboru
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    onEachFeature: function (feature, layer) {
+                        if (feature.properties) {
+                            layer.bindPopup(
+                                `<strong>PSČ:</strong> ${feature.properties.postalcode}<br>
+                                 <strong>Město:</strong> ${feature.properties.place}<br>
+                                 <strong>Země:</strong> ${feature.properties.countrycode}`
+                            );
+
+                            layer.on('click', function () {
+                                document.getElementById('postalCode').innerText = feature.properties.postalcode;
+                                document.getElementById('city').innerText = feature.properties.place;
+                                document.getElementById('country').innerText = feature.properties.countrycode;
+                            });
+                        }
+                    }
+                }).addTo(map);
+            })
+            .catch(error => console.error('Chyba při načítání GeoJSON:', error));
+    </script>
+</body>
+</html>
