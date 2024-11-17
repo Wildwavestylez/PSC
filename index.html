@@ -108,8 +108,8 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Načtení GeoJSON souboru
-         fetch('https://drive.google.com/uc?id=12RtVTWzyQT7yOYUYsIoA54c63ErDxRTy')
+        // Načtení GeoJSON souboru z Google Disku
+        fetch('https://drive.google.com/uc?id=12RtVTWzyQT7yOYUYsIoA54c63ErDxRTy')
             .then(response => response.json())
             .then(data => {
                 L.geoJSON(data, {
@@ -134,3 +134,4 @@
     </script>
 </body>
 </html>
+
