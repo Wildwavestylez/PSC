@@ -104,14 +104,14 @@
         }).addTo(map);
 
         var postalCodes = [
-            { postalcode: "11000", place: "Praha", countrycode: "CZ", lat: 50.0755, lon: 14.4378 },
-            { postalcode: "20000", place: "Brno", countrycode: "CZ", lat: 49.1951, lon: 16.6068 },
-            { postalcode: "10115", place: "Berlín", countrycode: "DE", lat: 52.5235, lon: 13.4115 },
-            { postalcode: "1010", place: "Vídeň", countrycode: "AT", lat: 48.2064, lon: 16.3705 },
-            { postalcode: "1200", place: "Zürich", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
+            { postalcode: "11000", place: "Praha", countrycode: "CZ", coords: [50.0708181, 14.4588508] },
+            { postalcode: "20000", place: "Brno", countrycode: "CZ", coords: [49.1951, 16.6068] },
+            { postalcode: "10115", place: "Berlín", countrycode: "DE", coords: [52.5235, 13.4115] },
+            { postalcode: "1010", place: "Vídeň", countrycode: "AT", coords: [48.2064, 16.3705] },
+            { postalcode: "1200", place: "Zürich", countrycode: "CH", coords: [47.3784, 8.5405] }
         ];
 
-        var vehicleMarker = L.marker([postalCodes[0].lat, postalCodes[0].lon]).addTo(map);
+        var vehicleMarker = L.marker([postalCodes[0].coords[0], postalCodes[0].coords[1]]).addTo(map);
         vehicleMarker.bindPopup("<strong>Vozidlo</strong>");
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -135,17 +135,17 @@
                 if (index < postalCodes.length - 1) {
                     var current = postalCodes[index];
                     var next = postalCodes[index + 1];
-                    var distance = calculateDistance(current.lat, current.lon, next.lat, next.lon);
+                    var distance = calculateDistance(current.coords[0], current.coords[1], next.coords[0], next.coords[1]);
                     var timeToTravel = (distance / speed) * 3600 * 1000;
 
                     var steps = Math.floor(timeToTravel / interval);
-                    var latStep = (next.lat - current.lat) / steps;
-                    var lonStep = (next.lon - current.lon) / steps;
+                    var latStep = (next.coords[0] - current.coords[0]) / steps;
+                    var lonStep = (next.coords[1] - current.coords[1]) / steps;
 
                     var stepCount = 0;
                     var moveInterval = setInterval(function () {
-                        var lat = current.lat + latStep * stepCount;
-                        var lon = current.lon + lonStep * stepCount;
+                        var lat = current.coords[0] + latStep * stepCount;
+                        var lon = current.coords[1] + lonStep * stepCount;
                         vehicleMarker.setLatLng([lat, lon]);
 
                         document.getElementById('postalCode').innerText = next.postalcode;
