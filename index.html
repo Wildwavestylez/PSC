@@ -108,30 +108,27 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Načtení GeoJSON souboru z Google Disku
-        fetch('https://drive.google.com/uc?id=12RtVTWzyQT7yOYUYsIoA54c63ErDxRTy')
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    onEachFeature: function (feature, layer) {
-                        if (feature.properties) {
-                            layer.bindPopup(
-                                `<strong>PSČ:</strong> ${feature.properties.postalcode}<br>
-                                 <strong>Město:</strong> ${feature.properties.place}<br>
-                                 <strong>Země:</strong> ${feature.properties.countrycode}`
-                            );
+        // Seznam PSČ, měst a souřadnic pro testovací účely
+        var postalCodes = [
+            { postalcode: "11000", place: "Praha", countrycode: "CZ", lat: 50.0755, lon: 14.4378 },
+            { postalcode: "20000", place: "Brno", countrycode: "CZ", lat: 49.1951, lon: 16.6068 },
+            { postalcode: "10115", place: "Berlín", countrycode: "DE", lat: 52.5235, lon: 13.4115 },
+            { postalcode: "1010", place: "Vídeň", countrycode: "AT", lat: 48.2064, lon: 16.3705 },
+            { postalcode: "1200", place: "Zürich", countrycode: "CH", lat: 47.3784, lon: 8.5405 }
+        ];
 
-                            layer.on('click', function () {
-                                document.getElementById('postalCode').innerText = feature.properties.postalcode;
-                                document.getElementById('city').innerText = feature.properties.place;
-                                document.getElementById('country').innerText = feature.properties.countrycode;
-                            });
-                        }
-                    }
-                }).addTo(map);
-            })
-            .catch(error => console.error('Chyba při načítání GeoJSON:', error));
+        // Přidání markerů pro každý záznam PSČ
+        postalCodes.forEach(function (postal) {
+            var marker = L.marker([postal.lat, postal.lon]).addTo(map);
+            marker.bindPopup(`<strong>PSČ:</strong> ${postal.postalcode}<br><strong>Město:</strong> ${postal.place}<br><strong>Země:</strong> ${postal.countrycode}`);
+
+            // Po kliknutí na marker se aktualizují informace na bočním panelu
+            marker.on('click', function () {
+                document.getElementById('postalCode').innerText = postal.postalcode;
+                document.getElementById('city').innerText = postal.place;
+                document.getElementById('country').innerText = postal.countrycode;
+            });
+        });
     </script>
 </body>
 </html>
-
