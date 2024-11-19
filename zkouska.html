@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evropská PSČ Mapa</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        header .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        #map {
+            height: calc(100vh - 60px); /* Výška minus header */
+            width: 100%;
+        }
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">Evropská PSČ</div>
+    </header>
+    <div id="map"></div>
+    <script>
+        // Inicializace mapy
+        const map = L.map('map').setView([50.0755, 14.4378], 7); // Praha jako výchozí bod
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Načtení textového souboru a konverze na JSON
+        fetch('CZ.txt') // Nahraďte názvem souboru ve vašem repozitáři
+            .then(response => response.text())
+            .then(text => {
+                const lines = text.split('\n');
+                const features = [];
+
+                lines.forEach(line => {
+                    const parts = line.split('\t');
+                    if (parts.length >= 5) {
+                        const postalCode = parts[1];
+                        const place = parts[2];
+                        const latitude = parseFloat(parts[9]);
+                        const longitude = parseFloat(parts[10]);
+
+                        if (!isNaN(latitude) && !isNaN(longitude)) {
+                            features.push({
+                                type: 'Feature',
+                                properties: {
+                                    postalCode,
+                                    place
+                                },
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [longitude, latitude]
+                                }
+                            });
+                        }
+                    }
+                });
+
+                const geoJson = {
+                    type: 'FeatureCollection',
+                    features
+                };
+
+                // Přidání markerů na mapu
+                L.geoJSON(geoJson, {
+                    onEachFeature: (feature, layer) => {
+                        layer.bindPopup(
+                            `<strong>PSČ:</strong> ${feature.properties.postalCode}<br>
+                             <strong>Město:</strong> ${feature.properties.place}`
+                        );
+                    }
+                }).addTo(map);
+
+                console.log('GeoJSON data:', geoJson);
+            })
+            .catch(error => console.error('Chyba při načítání souboru:', error));
+    </script>
+</body>
+</html>
