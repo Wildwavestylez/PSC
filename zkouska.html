@@ -48,39 +48,46 @@
         let route = []; // Uloží body trasy
         let carMarker = null;
 
-        // Načtení textového souboru a konverze na JSON
-        fetch('CZ.txt')
-            .then(response => response.text())
-            .then(text => {
-                const lines = text.split('\n');
-                const features = [];
+fetch('CZ.txt')
+    .then(response => response.text())
+    .then(text => {
+        const lines = text.split('\n');
+        const features = [];
 
-                lines.forEach(line => {
-                    const parts = line.split('\t');
-                    if (parts.length >= 5) {
-                        const postalCode = parts[1];
-                        const place = parts[2];
-                        const latitude = parseFloat(parts[9]);
-                        const longitude = parseFloat(parts[10]);
+        lines.forEach((line, index) => {
+            const parts = line.split('\t');
+            if (parts.length >= 5) {
+                const postalCode = parts[1];
+                const place = parts[2];
+                const latitude = parseFloat(parts[9]);
+                const longitude = parseFloat(parts[10]);
 
-                        if (!isNaN(latitude) && !isNaN(longitude)) {
-                            features.push({
-                                postalCode,
-                                place,
-                                coordinates: [latitude, longitude]
-                            });
-                        }
-                    }
-                });
+                if (!isNaN(latitude) && !isNaN(longitude)) {
+                    features.push({
+                        postalCode,
+                        place,
+                        coordinates: [latitude, longitude]
+                    });
+                } else {
+                    console.warn(`Řádek ${index + 1}: Chybné souřadnice - ${line}`);
+                }
+            } else {
+                console.warn(`Řádek ${index + 1}: Neočekávaný formát - ${line}`);
+            }
+        });
 
-                // Setřídění podle PSČ
-                route = features.sort((a, b) => a.postalCode.localeCompare(b.postalCode));
-                console.log('Trasa podle PSČ:', route);
+        // Setřídění podle PSČ
+        route = features.sort((a, b) => a.postalCode.localeCompare(b.postalCode));
+        console.log('Trasa podle PSČ:', route);
 
-                // Nastavení simulace jízdy
-                simulateDrive();
-            })
-            .catch(error => console.error('Chyba při načítání souboru:', error));
+        if (route.length < 2) {
+            console.error('Trasa není dostatečně dlouhá pro simulaci.');
+        } else {
+            simulateDrive();
+        }
+    })
+    .catch(error => console.error('Chyba při načítání souboru:', error));
+
 
         function simulateDrive() {
             if (route.length < 2) {
