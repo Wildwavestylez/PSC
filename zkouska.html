@@ -90,7 +90,7 @@
                 let end = postOffices[index + 1];
 
                 let distance = getDistance(start.lat, start.lon, end.lat, end.lon);
-                let travelTime = (distance / 90) * 3600; // Čas v sekundách
+                let travelTime = (distance / 450) * 3600; // Čas v sekundách
                 let steps = Math.floor(travelTime / 2); // Interval každé 2 sekundy
                 let step = 0;
                 let latStep = (end.lat - start.lat) / steps;
