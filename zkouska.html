@@ -1,119 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulace jízdy vozidla</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Poštovní auto</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        #map { height: 100vh; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #map { flex: 1; }
+        #log { flex: 1; overflow-y: auto; padding: 10px; background: #f8f8f8; border-top: 2px solid #ccc; }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="log"><h3>Log poštovního auta</h3></div>
+
     <script>
-        // Inicializace mapy
-        const map = L.map('map').setView([50, 15], 7); // Střední Evropa
+        const map = L.map('map').setView([49.8, 15.5], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Vozidlo jako marker na mapě
-        const vehicleMarker = L.marker([50, 15]).addTo(map);
+        let postOffices = [];
+        let markers = [];
+        let carMarker = null;
+        const logElement = document.getElementById("log");
 
-        let route = [];
+        function addLogEntry(text) {
+            const entry = document.createElement("p");
+            entry.textContent = text;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
 
-        // Funkce pro načtení a zpracování textového souboru
-        fetch('CZ.txt')
-            .then(response => response.text())
-            .then(text => {
-                const lines = text.split('\n');
-                const features = [];
+        async function fetchPostOffices() {
+            const query = `[out:json];area["name"="Česko"]->.boundary;node["amenity"="post_office"](area.boundary);out body;`;
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
-                lines.forEach((line, index) => {
-                    const parts = line.split('\t'); // Rozdělení na sloupce
-                    if (parts.length >= 6) { // Ověření minimální délky
-                        const latitude = parseFloat(parts[4]);
-                        const longitude = parseFloat(parts[5]);
-                        const name = parts[1]; // Název místa (volitelně)
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                postOffices = data.elements
+                    .filter(n => n.tags.ref)
+                    .sort((a, b) => a.tags.ref.localeCompare(b.tags.ref));
 
-                        if (!isNaN(latitude) && !isNaN(longitude)) {
-                            features.push({
-                                name,
-                                coordinates: [latitude, longitude]
-                            });
-                        }
-                    }
-                });
-
-                // Nastavení trasy podle získaných dat
-                route = features.map(f => f.coordinates);
-
-                console.log('Načtená trasa:', route);
-
-                if (route.length < 2) {
-                    console.error('Trasa není dostatečně dlouhá pro simulaci.');
-                } else {
-                    simulateDrive();
-                }
-            })
-            .catch(error => console.error('Chyba při načítání souboru:', error));
-
-        // Funkce pro simulaci jízdy
-        function simulateDrive() {
-            if (route.length < 2) {
-                console.error('Trasa není dostatečně dlouhá pro simulaci.');
-                return;
-            }
-
-            let index = 0;
-            const speed = 80 / 3600; // 80 km/h převedeno na km/s
-
-            function moveVehicle() {
-                if (index >= route.length - 1) {
-                    console.log('Simulace dokončena.');
+                if (postOffices.length < 2) {
+                    addLogEntry("Nedostatek pošt k pohybu auta.");
                     return;
                 }
 
-                const [lat1, lon1] = route[index];
-                const [lat2, lon2] = route[index + 1];
-                const distance = getDistance(lat1, lon1, lat2, lon2); // Vzdálenost mezi body (km)
-                const duration = distance / speed; // Doba přesunu (s)
-
-                let t = 0;
-
-                const interval = setInterval(() => {
-                    t += 0.1; // Časový krok
-                    const progress = t / duration;
-
-                    if (progress >= 1) {
-                        clearInterval(interval);
-                        index++;
-                        moveVehicle();
-                    } else {
-                        const lat = lat1 + (lat2 - lat1) * progress;
-                        const lon = lon1 + (lon2 - lon1) * progress;
-                        vehicleMarker.setLatLng([lat, lon]);
-                        map.panTo([lat, lon]);
-                    }
-                }, 100);
+                updateMarkers([postOffices[0], postOffices[1]]);
+                startCarMovement();
+            } catch (error) {
+                console.error("Chyba při načítání pošt:", error);
+                addLogEntry("Chyba při načítání pošt.");
             }
-
-            moveVehicle();
         }
 
-        // Funkce pro výpočet vzdálenosti mezi dvěma body (v km)
+        function updateMarkers(currentPosts) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = currentPosts.map(office =>
+                L.marker([office.lat, office.lon])
+                    .bindPopup(`<b>PSČ:</b> ${office.tags.ref}<br><b>Město:</b> ${office.tags.name || 'Neznámé'}`)
+                    .addTo(map)
+            );
+        }
+
+        function startCarMovement() {
+            if (!postOffices.length) return;
+            
+            let index = 0;
+            carMarker = L.marker([postOffices[0].lat, postOffices[0].lon], {
+                icon: L.icon({
+                    iconUrl: "https://i.imgur.com/SWlnHG2.jpg",
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                })
+            }).addTo(map);
+
+            function moveToNextPost() {
+                if (index >= postOffices.length - 1) {
+                    addLogEntry("Auto dorazilo na poslední poštu. Konec trasy.");
+                    return;
+                }
+
+                let start = postOffices[index];
+                let end = postOffices[index + 1];
+
+                let distance = getDistance(start.lat, start.lon, end.lat, end.lon);
+                let travelTime = (distance / 90) * 3600; // Čas v sekundách
+                let steps = Math.floor(travelTime / 2); // Interval každé 2 sekundy
+                let step = 0;
+                let latStep = (end.lat - start.lat) / steps;
+                let lonStep = (end.lon - start.lon) / steps;
+
+                addLogEntry(`Auto vyjelo z ${start.tags.name} (PSČ: ${start.tags.ref}).`);
+
+                let moveInterval = setInterval(() => {
+                    if (step >= steps) {
+                        clearInterval(moveInterval);
+                        addLogEntry(`Auto dorazilo do ${end.tags.name} (PSČ: ${end.tags.ref}).`);
+                        index++;
+                        updateMarkers([postOffices[index], postOffices[index + 1]]);
+                        moveToNextPost();
+                        return;
+                    }
+                    step++;
+                    let newLat = start.lat + latStep * step;
+                    let newLon = start.lon + lonStep * step;
+                    carMarker.setLatLng([newLat, newLon]);
+                }, 2000);
+            }
+
+            moveToNextPost();
+        }
+
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Poloměr Země v kilometrech
+            const R = 6371; // Poloměr Země v km
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
         }
+
+        fetchPostOffices();
     </script>
 </body>
 </html>
