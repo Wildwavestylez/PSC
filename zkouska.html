@@ -35,29 +35,41 @@
             logElement.scrollTop = logElement.scrollHeight;
         }
 
-        async function fetchPostOffices() {
-            const query = `[out:json];area["name"="Česko"]->.boundary;node["amenity"="post_office"](area.boundary);out body;`;
-            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+async function fetchPostOffices() {
+    const query = `[out:json];area["name"="Česko"]->.boundary;
+                   node["amenity"="post_office"](area.boundary);out body;`;
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                postOffices = data.elements
-                    .filter(n => n.tags.ref)
-                    .sort((a, b) => a.tags.ref.localeCompare(b.tags.ref));
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        postOffices = data.elements
+            .filter(n => n.tags.ref && !isParcelDepot(n.tags)) // 🛑 Filtrujeme depa
+            .sort((a, b) => a.tags.ref.localeCompare(b.tags.ref));
 
-                if (postOffices.length < 2) {
-                    addLogEntry("Nedostatek pošt k pohybu auta.");
-                    return;
-                }
-
-                updateMarkers([postOffices[0], postOffices[1]]);
-                startCarMovement();
-            } catch (error) {
-                console.error("Chyba při načítání pošt:", error);
-                addLogEntry("Chyba při načítání pošt.");
-            }
+        if (postOffices.length < 2) {
+            addLogEntry("Nedostatek pošt k pohybu auta.");
+            return;
         }
+
+        updateMarkers([postOffices[0], postOffices[1]]);
+        startCarMovement();
+    } catch (error) {
+        console.error("Chyba při načítání pošt:", error);
+        addLogEntry("Chyba při načítání pošt.");
+    }
+}
+
+// Funkce na odstranění zásilkoven a dep
+function isParcelDepot(tags) {
+    const blacklist = ["Zásilkovna", "DPD", "PPL", "GLS", "Balíkovna", "Geis", "WE|DO", "FedEx"];
+    
+    if (tags.name) {
+        return blacklist.some(name => tags.name.includes(name));
+    }
+    return false;
+}
 
         function updateMarkers(currentPosts) {
             markers.forEach(m => map.removeLayer(m));
@@ -90,7 +102,7 @@
                 let end = postOffices[index + 1];
 
                 let distance = getDistance(start.lat, start.lon, end.lat, end.lon);
-                let travelTime = (distance / 450) * 3600; // Čas v sekundách
+                let travelTime = (distance / 650) * 3600; // Čas v sekundách
                 let steps = Math.floor(travelTime / 2); // Interval každé 2 sekundy
                 let step = 0;
                 let latStep = (end.lat - start.lat) / steps;
