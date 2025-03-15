@@ -43,7 +43,7 @@ async function fetchPostOffices() {
     try {
         const response = await fetch(url);
         const data = await response.json();
-        
+
         postOffices = data.elements
             .filter(n => n.tags.ref && !isParcelDepot(n.tags)) // 🛑 Filtrujeme depa
             .sort((a, b) => a.tags.ref.localeCompare(b.tags.ref));
@@ -64,7 +64,7 @@ async function fetchPostOffices() {
 // Funkce na odstranění zásilkoven a dep
 function isParcelDepot(tags) {
     const blacklist = ["Zásilkovna", "DPD", "PPL", "GLS", "Balíkovna", "Geis", "WE|DO", "FedEx"];
-    
+
     if (tags.name) {
         return blacklist.some(name => tags.name.includes(name));
     }
@@ -80,54 +80,73 @@ function isParcelDepot(tags) {
             );
         }
 
-        function startCarMovement() {
-            if (!postOffices.length) return;
-            
-            let index = 0;
-            carMarker = L.marker([postOffices[0].lat, postOffices[0].lon], {
-                icon: L.icon({
-                    iconUrl: "https://i.imgur.com/SWlnHG2.jpg",
-                    iconSize: [40, 40],
-                    iconAnchor: [20, 20]
-                })
-            }).addTo(map);
+        function saveCarPosition(lat, lon, index) {
+    localStorage.setItem("carPosition", JSON.stringify({ lat, lon, index }));
+}
 
-            function moveToNextPost() {
-                if (index >= postOffices.length - 1) {
-                    addLogEntry("Auto dorazilo na poslední poštu. Konec trasy.");
-                    return;
-                }
+function loadCarPosition() {
+    let data = localStorage.getItem("carPosition");
+    return data ? JSON.parse(data) : { lat: null, lon: null, index: 0 }; // Oprava: defaultní index = 0
+}
 
-                let start = postOffices[index];
-                let end = postOffices[index + 1];
+function startCarMovement() {
+    if (!postOffices.length) return;
 
-                let distance = getDistance(start.lat, start.lon, end.lat, end.lon);
-                let travelTime = (distance / 980) * 3600; // Čas v sekundách
-                let steps = Math.floor(travelTime / 2); // Interval každé 2 sekundy
-                let step = 0;
-                let latStep = (end.lat - start.lat) / steps;
-                let lonStep = (end.lon - start.lon) / steps;
+    let savedPosition = loadCarPosition();
+    let index = savedPosition.index ?? 0; // Oprava: fallback na 0, pokud je index undefined
 
-                addLogEntry(`Auto vyjelo z ${start.tags.name} (PSČ: ${start.tags.ref}).`);
-
-                let moveInterval = setInterval(() => {
-                    if (step >= steps) {
-                        clearInterval(moveInterval);
-                        addLogEntry(`Auto dorazilo do ${end.tags.name} (PSČ: ${end.tags.ref}).`);
-                        index++;
-                        updateMarkers([postOffices[index], postOffices[index + 1]]);
-                        moveToNextPost();
-                        return;
-                    }
-                    step++;
-                    let newLat = start.lat + latStep * step;
-                    let newLon = start.lon + lonStep * step;
-                    carMarker.setLatLng([newLat, newLon]);
-                }, 2000);
-            }
-
-            moveToNextPost();
+    carMarker = L.marker(
+        savedPosition.lat !== null
+            ? [savedPosition.lat, savedPosition.lon]
+            : [postOffices[0].lat, postOffices[0].lon],
+        {
+            icon: L.icon({
+                iconUrl: "https://i.imgur.com/SWlnHG2.jpg",
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            })
         }
+    ).addTo(map);
+
+    function moveToNextPost() {
+        if (index >= postOffices.length - 1) {
+            addLogEntry("Auto dorazilo na poslední poštu. Konec trasy.");
+            return;
+        }
+
+        let start = postOffices[index];
+        let end = postOffices[index + 1];
+
+        let distance = getDistance(start.lat, start.lon, end.lat, end.lon);
+        let travelTime = (distance / 990) * 3600; // 90 km/h -> čas v sekundách
+        let steps = Math.floor(travelTime / 1); // Interval každé 2 sekundy
+        let step = 0;
+        let latStep = (end.lat - start.lat) / steps;
+        let lonStep = (end.lon - start.lon) / steps;
+
+        addLogEntry(`Auto vyjelo z ${start.tags.name} (PSČ: ${start.tags.ref}).`);
+
+        let moveInterval = setInterval(() => {
+            if (step >= steps) {
+                clearInterval(moveInterval);
+                addLogEntry(`Auto dorazilo do ${end.tags.name} (PSČ: ${end.tags.ref}).`);
+                index++;
+                updateMarkers([postOffices[index], postOffices[index + 1]]);
+                saveCarPosition(end.lat, end.lon, index);
+                moveToNextPost();
+                return;
+            }
+            step++;
+            let newLat = start.lat + latStep * step;
+            let newLon = start.lon + lonStep * step;
+            carMarker.setLatLng([newLat, newLon]);
+            saveCarPosition(newLat, newLon, index);
+        }, 2000);
+    }
+
+    moveToNextPost();
+}
+        
 
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; // Poloměr Země v km
